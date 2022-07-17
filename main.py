@@ -42,9 +42,8 @@ async def portal():
     soup = BeautifulSoup(response.text, 'lxml')
     page_count = soup.find('title').string.split('|')[0].split()[-1]
     urls = [f'https://rusneb.ru/search/?access=open&PAGEN_1={i}' for i in range(1, int(page_count) + 1)]
-    response = (grequests.get(url) for url in urls)
-    sites = grequests.map(response)
-    for site in sites:
+    for url in urls:
+        site = requests.get(url)
         if site.status_code != 200:
             continue
         soup = BeautifulSoup(site.text, 'lxml')
