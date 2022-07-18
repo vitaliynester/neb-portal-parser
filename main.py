@@ -20,7 +20,7 @@ async def svet():
     response = (grequests.get(url) for url in urls)
     sites = grequests.map(response)
     for site in sites:
-        if site.status_code != 200:
+        if site is None or site.status_code != 200:
             continue
         soup = BeautifulSoup(site.text, 'lxml')
         all_books = soup.find_all('div', class_='search-list__item')
@@ -41,16 +41,23 @@ async def portal():
         return {"data": []}
     soup = BeautifulSoup(response.text, 'lxml')
     page_count = soup.find('title').string.split('|')[0].split()[-1]
-    urls = [f'https://rusneb.ru/search/?access=open&PAGEN_1={i}' for i in range(1, int(page_count) + 1)]
-    for url in urls:
-        site = requests.get(url)
-        if site.status_code != 200:
-            continue
-        soup = BeautifulSoup(site.text, 'lxml')
-        all_books = soup.find_all('div', class_='search-list__item')
-        for book in all_books:
-            book_id = book.find('a', class_='search-list__item_link', href=True)['href'].split('/')[-2]
-            book_name = book.find('a', class_='search-list__item_link').find('span').text.strip()
-            result.append({'book_id': book_id, 'book_name': book_name})
+    list_urls = list(chunk_based_on_size([f'https://rusneb.ru/search/?access=open&PAGEN_1={i}' for i in range(1, int(page_count) + 1)], 100))
+    for urls in list_urls:
+        response = (grequests.get(url) for url in urls)
+        sites = grequests.map(response)
+        for site in sites:
+            if site is None or site.status_code != 200:
+                continue
+            soup = BeautifulSoup(site.text, 'lxml')
+            all_books = soup.find_all('div', class_='search-list__item')
+            for book in all_books:
+                book_id = book.find('a', class_='search-list__item_link', href=True)['href'].split('/')[-2]
+                book_name = book.find('a', class_='search-list__item_link').find('span').text.strip()
+                result.append({'book_id': book_id, 'book_name': book_name})
 
     return {"data": result}
+
+
+def chunk_based_on_size(lst, n):
+    for x in range(0, len(lst), n):
+        yield lst[x: n+x]
